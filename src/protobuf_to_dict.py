@@ -127,6 +127,21 @@ def _get_field_mapping(pb, dict_value, strict):
     return field_mapping
 
 
+def _check_field_value(field, field_pb_value, value, python_type):
+    """
+    :param field: A protobuf FieldDescriptor, indicate which field the value is for
+    :param field_pb_value: Field value defined in its pb2 files
+    :param value: The incoming value to be checked
+    :param type python_type: The type the incoming value should be,
+        as a representation of field_pb_value's type in Python.
+    """
+    print type(field)
+    if not isinstance(value, python_type):
+        raise ValueError(
+            'Value on field `%s` (%s) should be of type `%s`, but got `%s`' %
+            (field.name, type(field_pb_value), python_type, value))
+
+
 def _dict_to_protobuf(pb, value, type_callable_map, strict):
     fields = _get_field_mapping(pb, value, strict)
 
@@ -135,6 +150,8 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
             for item in input_value:
                 if field.type == FieldDescriptor.TYPE_MESSAGE:
                     m = pb_value.add()
+                    # Check value type before recurse
+                    _check_field_value(field, m, item, dict)
                     _dict_to_protobuf(m, item, type_callable_map, strict)
                 elif field.type == FieldDescriptor.TYPE_ENUM and isinstance(item, basestring):
                     pb_value.append(_string_to_enum(field, item))
@@ -142,6 +159,8 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
                     pb_value.append(item)
             continue
         if field.type == FieldDescriptor.TYPE_MESSAGE:
+            # Check value type before recurse
+            _check_field_value(field, pb_value, input_value, dict)
             _dict_to_protobuf(pb_value, input_value, type_callable_map, strict)
             continue
 
