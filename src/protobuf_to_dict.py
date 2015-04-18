@@ -135,7 +135,6 @@ def _check_field_value(field, field_pb_value, value, python_type):
     :param type python_type: The type the incoming value should be,
         as a representation of field_pb_value's type in Python.
     """
-    print type(field)
     if not isinstance(value, python_type):
         raise ValueError(
             'Value on field `%s` (%s) should be of type `%s`, but got `%s`' %
