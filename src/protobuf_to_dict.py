@@ -36,7 +36,42 @@ def enum_label_name(field, value):
     return field.enum_type.values_by_number[int(value)].name
 
 
-def protobuf_to_dict(pb, type_callable_map=TYPE_CALLABLE_MAP, use_enum_labels=False):
+def _is_required(field):
+    if field.label == FieldDescriptor.LABEL_REQUIRED:
+        return True
+    return False
+
+
+def _is_optional(field):
+    if field.label == FieldDescriptor.LABEL_OPTIONAL:
+        return True
+    return False
+
+
+def _is_repeated(field):
+    if field.label == FieldDescriptor.LABEL_REPEATED:
+        return True
+    return False
+
+
+def _is_message(field):
+    if field.type == FieldDescriptor.TYPE_MESSAGE:
+        return True
+    return False
+
+
+def protobuf_set_default(pb):
+    for field in pb.DESCRIPTOR.fields:
+        if _is_repeated(field):
+            continue
+        elif _is_message(field):
+            protobuf_set_default(getattr(pb, field.name))
+        elif _is_optional(field) and not pb.HasField(field.name) and field.has_default_value:
+            setattr(pb, field.name, field.default_value)
+
+
+def protobuf_to_dict(pb, type_callable_map=TYPE_CALLABLE_MAP,
+                     use_enum_labels=False):
     result_dict = {}
     extensions = {}
     for field, value in pb.ListFields():
@@ -58,7 +93,8 @@ def protobuf_to_dict(pb, type_callable_map=TYPE_CALLABLE_MAP, use_enum_labels=Fa
 def _get_field_value_adaptor(pb, field, type_callable_map=TYPE_CALLABLE_MAP, use_enum_labels=False):
     if field.type == FieldDescriptor.TYPE_MESSAGE:
         # recursively encode protobuf sub-message
-        return lambda pb: protobuf_to_dict(pb,
+        return lambda pb: protobuf_to_dict(
+            pb,
             type_callable_map=type_callable_map,
             use_enum_labels=use_enum_labels)
 
@@ -86,7 +122,7 @@ def dict_to_protobuf(pb_klass_or_instance, values, type_callable_map=REVERSE_TYP
 
     :param pb_klass_or_instance: a protobuf message class, or an protobuf instance
     :type pb_klass_or_instance: a type or instance of a subclass of google.protobuf.message.Message
-    :param dict values: a dictionary of values. Repeated and nested values are 
+    :param dict values: a dictionary of values. Repeated and nested values are
        fully supported.
     :param dict type_callable_map: a mapping of protobuf types to callables for setting
        values on the target instance.
@@ -176,6 +212,7 @@ def _dict_to_protobuf(pb, value, type_callable_map, strict):
         setattr(pb, field.name, input_value)
 
     return pb
+
 
 def _string_to_enum(field, input_value):
     enum_dict = field.enum_type.values_by_name
